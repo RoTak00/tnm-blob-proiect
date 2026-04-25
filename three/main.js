@@ -38,11 +38,14 @@ camera.position.z = 10;
 
 const bodies = [
   new SoftBody({
-    shape: ShapeFactory.rectangle(6, 3, 8),
+    shape: ShapeFactory.oval(64, 3, 5),
     rotation: Math.PI / 4,
-    center: new THREE.Vector2(-5, 6),
-    shapeStiffness: 400,
+    center: new THREE.Vector2(-5, 4),
+    shapeStiffness: 300,
     bounce: 0.9,
+    filled: true,
+    fillColor: 0xff0000,
+    showPoints: false,
   }),
 ];
 

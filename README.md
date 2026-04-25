@@ -57,6 +57,26 @@ shape: ShapeFactory.circle(24, 2.5);
 
 ---
 
+### Oval
+
+```js
+ShapeFactory.oval(pointCount, radiusX, radiusY);
+```
+
+Example:
+
+```js
+shape: ShapeFactory.oval(24, 2.5, 5);
+```
+
+| Parameter  | Meaning           |
+| ---------- | ----------------- |
+| pointCount | Number of points  |
+| radiusX    | Horizontal radius |
+| radiusY    | Vertical radius   |
+
+---
+
 ### Square
 
 ```js
@@ -80,18 +100,68 @@ Total points:
 4 * pointsPerEdge
 ```
 
----
-
-### Triangle
+### Rectangle
 
 ```js
-ShapeFactory.triangle(radius, pointsPerEdge);
+ShapeFactory.rectangle(width, height, pointsPerEdge);
 ```
 
 Example:
 
 ```js
-shape: ShapeFactory.triangle(3, 8);
+shape: ShapeFactory.rectangle(4, 6, 8);
+```
+
+| Parameter     | Meaning                   |
+| ------------- | ------------------------- |
+| width         | Width                     |
+| height        | Height                    |
+| pointsPerEdge | Points per rectangle edge |
+
+Total points:
+
+```
+4 * pointsPerEdge
+```
+
+---
+
+### Triangle
+
+```js
+ShapeFactory.triangle(radius, smallAngle, pointsPerEdge);
+```
+
+Example:
+
+```js
+shape: ShapeFactory.triangle(3, 25, 8);
+```
+
+| Parameter     | Meaning                              |
+| ------------- | ------------------------------------ |
+| radius        | Distance from center to corner       |
+| smallAngle    | The angle of the top of the triangle |
+| pointsPerEdge | Points per edge                      |
+
+Total points:
+
+```
+3 * pointsPerEdge
+```
+
+---
+
+### Equilateral Triangle
+
+```js
+ShapeFactory.triangleEquilateral(radius, pointsPerEdge);
+```
+
+Example:
+
+```js
+shape: ShapeFactory.triangleEquilateral(3, 8);
 ```
 
 | Parameter     | Meaning                        |
@@ -131,15 +201,20 @@ body.addToScene(scene);
 
 ## SoftBody parameters
 
-| Parameter      | Meaning                 | Example                     |
-| -------------- | ----------------------- | --------------------------- |
-| shape          | Shape points            | `ShapeFactory.circle(...)`  |
-| center         | Initial position        | `new THREE.Vector2(0, 4)`   |
-| shapeStiffness | Shape recovery strength | `80`                        |
-| shapeDamping   | Internal damping        | `8`                         |
-| gravity        | Gravity force           | `new THREE.Vector2(0, -20)` |
-| bounce         | Bounce on walls         | `0.5`                       |
-| friction       | Floor friction          | `8`                         |
+| Parameter      | Meaning                                | Example                     |
+| -------------- | -------------------------------------- | --------------------------- |
+| shape          | Shape points                           | `ShapeFactory.circle(...)`  |
+| center         | Initial position                       | `new THREE.Vector2(0, 4)`   |
+| rotation       | Initial rotation                       | `Math.PI / 4`               |
+| shapeStiffness | Shape recovery strength                | `80`                        |
+| shapeDamping   | Internal damping                       | `8`                         |
+| gravity        | Gravity force                          | `new THREE.Vector2(0, -20)` |
+| bounce         | Bounce on walls                        | `0.5`                       |
+| friction       | Floor friction                         | `8`                         |
+| filled         | Show the body as a filled block ?      | `true`                      |
+| fillColor      | The color with which to fill the block | `0xff0000`                  |
+| fillOpacity    | The Opacity of the fill color          | `0.5       `                |
+| showPoints     | Show the point mesh of the body        | `true`                      |
 
 ---
 

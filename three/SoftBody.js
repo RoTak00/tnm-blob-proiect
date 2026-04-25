@@ -20,6 +20,12 @@ export class SoftBody {
 
     this.rotation = options.rotation ?? 0; // radians
 
+    this.filled = options.filled ?? false;
+    this.fillColor = options.fillColor ?? 0xffffff;
+    this.fillOpacity = options.fillOpacity ?? 1;
+
+    this.showPoints = options.showPoints ?? true;
+
     this.createPoints();
     this.createObjects();
     this.updateVisual();
@@ -71,11 +77,41 @@ export class SoftBody {
         sizeAttenuation: false,
       }),
     );
+
+    this.fillGeometry = new THREE.BufferGeometry();
+
+    const fillIndices = [];
+    for (let i = 1; i < this.points.length - 1; i++) {
+      fillIndices.push(0, i, i + 1);
+    }
+
+    this.fillGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(this.positions, 3),
+    );
+
+    this.fillGeometry.setIndex(fillIndices);
+
+    this.fillMesh = new THREE.Mesh(
+      this.fillGeometry,
+      new THREE.MeshBasicMaterial({
+        color: this.fillColor,
+        transparent: true,
+        opacity: this.fillOpacity,
+        side: THREE.DoubleSide,
+      }),
+    );
   }
 
   addToScene(scene) {
+    if (this.filled) {
+      scene.add(this.fillMesh);
+    }
+
     scene.add(this.line);
-    scene.add(this.pointMesh);
+    if (this.showPoints) {
+      scene.add(this.pointMesh);
+    }
   }
 
   resetForces() {
@@ -235,5 +271,6 @@ export class SoftBody {
 
     this.geometry.attributes.position.needsUpdate = true;
     this.pointGeometry.attributes.position.needsUpdate = true;
+    this.fillGeometry.attributes.position.needsUpdate = true;
   }
 }
