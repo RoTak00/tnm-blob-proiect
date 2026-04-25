@@ -60,28 +60,46 @@ const SHAPE_CONFIG = {
   circle: {
     builder: (params) => ShapeFactory.circle(params.pointCount, params.radius),
     controls: [
-      { key: "pointCount", label: "nr puncte", min: 6, max: 80, step: 1 },
-      { key: "radius", label: "dimensiune (radius)", min: 0.5, max: 8, step: 0.1 },
+      { key: "pointCount", label: "Point Count", min: 3, max: 128, step: 1 },
+      {
+        key: "radius",
+        label: "Radius",
+        min: 0.5,
+        max: 10,
+        step: 0.05,
+      },
     ],
   },
   oval: {
     builder: (params) =>
       ShapeFactory.oval(params.pointCount, params.radiusX, params.radiusY),
     controls: [
-      { key: "pointCount", label: "nr puncte", min: 6, max: 80, step: 1 },
-      { key: "radiusX", label: "dimensiune X", min: 0.5, max: 8, step: 0.1 },
-      { key: "radiusY", label: "dimensiune Y", min: 0.5, max: 8, step: 0.1 },
+      { key: "pointCount", label: "Point Count", min: 3, max: 128, step: 1 },
+      {
+        key: "radiusX",
+        label: "Horizontal Radius",
+        min: 0.5,
+        max: 10,
+        step: 0.1,
+      },
+      {
+        key: "radiusY",
+        label: "Vertical Radius",
+        min: 0.5,
+        max: 10,
+        step: 0.1,
+      },
     ],
   },
   square: {
     builder: (params) => ShapeFactory.square(params.size, params.pointsPerEdge),
     controls: [
-      { key: "size", label: "dimensiune (size)", min: 1, max: 10, step: 0.1 },
+      { key: "size", label: "Width", min: 1, max: 10, step: 0.1 },
       {
         key: "pointsPerEdge",
-        label: "nr puncte/edge",
-        min: 2,
-        max: 30,
+        label: "Points per Edge",
+        min: 1,
+        max: 64,
         step: 1,
       },
     ],
@@ -90,13 +108,13 @@ const SHAPE_CONFIG = {
     builder: (params) =>
       ShapeFactory.rectangle(params.width, params.height, params.pointsPerEdge),
     controls: [
-      { key: "width", label: "width", min: 1, max: 12, step: 0.1 },
-      { key: "height", label: "height", min: 1, max: 12, step: 0.1 },
+      { key: "width", label: "Width", min: 1, max: 10, step: 0.1 },
+      { key: "height", label: "Height", min: 1, max: 10, step: 0.1 },
       {
         key: "pointsPerEdge",
-        label: "nr puncte/edge",
-        min: 2,
-        max: 30,
+        label: "Points per Edge",
+        min: 1,
+        max: 64,
         step: 1,
       },
     ],
@@ -109,19 +127,25 @@ const SHAPE_CONFIG = {
         params.pointsPerEdge,
       ),
     controls: [
-      { key: "height", label: "dimensiune (height)", min: 1, max: 10, step: 0.1 },
+      {
+        key: "height",
+        label: "Height",
+        min: 1,
+        max: 10,
+        step: 0.1,
+      },
       {
         key: "smallAngleDeg",
-        label: "unghi varf",
-        min: 10,
-        max: 120,
+        label: "Tip Angle",
+        min: 2,
+        max: 178,
         step: 1,
       },
       {
         key: "pointsPerEdge",
-        label: "nr puncte/edge",
-        min: 2,
-        max: 30,
+        label: "Points per Edge",
+        min: 1,
+        max: 64,
         step: 1,
       },
     ],
@@ -129,12 +153,18 @@ const SHAPE_CONFIG = {
 };
 
 const COMMON_CONTROLS = [
-  { key: "rotation", label: "rotatie", min: -3.14, max: 3.14, step: 0.01 },
-  { key: "shapeStiffness", label: "flexiune/stiffness", min: 10, max: 300, step: 1 },
-  { key: "shapeDamping", label: "shapeDamping", min: 0, max: 30, step: 0.1 },
-  { key: "bounce", label: "bounce", min: 0, max: 1.2, step: 0.01 },
-  { key: "friction", label: "friction", min: 0, max: 60, step: 0.5 },
-  { key: "gravityY", label: "gravityY", min: -60, max: 20, step: 0.5 },
+  { key: "rotation", label: "Rotation", min: -3.14, max: 3.14, step: 0.01 },
+  {
+    key: "shapeStiffness",
+    label: "Stiffness",
+    min: 5,
+    max: 1000,
+    step: 1,
+  },
+  { key: "shapeDamping", label: "Damping", min: 1, max: 30, step: 0.1 },
+  { key: "bounce", label: "Bounce", min: 0, max: 1.2, step: 0.01 },
+  { key: "friction", label: "Friction", min: 0, max: 100, step: 0.5 },
+  { key: "gravityY", label: "Gravity", min: -60, max: 0, step: 0.5 },
 ];
 
 const controlState = {
@@ -154,7 +184,7 @@ const controlState = {
     bounce: 0.5,
     friction: 35,
     gravityY: -20,
-    filled: false,
+    filled: true,
     fillColor: "#ffaa33",
   },
 };
@@ -176,6 +206,7 @@ function createBody(shapeKey) {
     bounce: controlState.common.bounce,
     friction: controlState.common.friction,
     filled: controlState.common.filled,
+    showPoints: !controlState.common.filled,
     fillColor: controlState.common.fillColor,
     fillOpacity: controlState.common.filled ? 0.8 : 0,
   });
@@ -204,12 +235,25 @@ function createControl(labelText, initialValue, min, max, step, onInput) {
   const top = document.createElement("div");
   top.style.display = "flex";
   top.style.justifyContent = "space-between";
+  top.style.alignItems = "center";
+  top.style.gap = "8px";
 
   const label = document.createElement("span");
   label.innerText = labelText;
 
-  const value = document.createElement("span");
-  value.innerText = Number(initialValue).toFixed(2);
+  const numberInput = document.createElement("input");
+  numberInput.type = "number";
+  numberInput.min = String(min);
+  numberInput.max = String(max);
+  numberInput.step = String(step);
+  numberInput.value = String(initialValue);
+  numberInput.style.width = "72px";
+  numberInput.style.background = "#1e1e1e";
+  numberInput.style.color = "#fff";
+  numberInput.style.border = "1px solid #666";
+  numberInput.style.borderRadius = "4px";
+  numberInput.style.padding = "2px 4px";
+  numberInput.style.fontSize = "12px";
 
   const input = document.createElement("input");
   input.type = "range";
@@ -218,14 +262,33 @@ function createControl(labelText, initialValue, min, max, step, onInput) {
   input.step = String(step);
   input.value = String(initialValue);
 
-  input.addEventListener("input", () => {
-    const numeric = Number(input.value);
-    value.innerText = numeric.toFixed(2);
+  function applyValue(rawValue) {
+    let numeric = Number(rawValue);
+
+    if (!Number.isFinite(numeric)) return;
+
+    input.value = String(numeric);
+    numberInput.value = String(numeric);
+
     onInput(numeric);
+  }
+
+  input.addEventListener("input", () => {
+    applyValue(input.value);
+  });
+
+  numberInput.addEventListener("change", () => {
+    applyValue(numberInput.value);
+  });
+
+  numberInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      numberInput.blur();
+    }
   });
 
   top.appendChild(label);
-  top.appendChild(value);
+  top.appendChild(numberInput);
   wrapper.appendChild(top);
   wrapper.appendChild(input);
 
@@ -308,8 +371,8 @@ function getLiveStatsForMusic() {
 
   const speed = body.stats.speed;
   const forta = body.stats.force;
-  const stress = THREE.MathUtils.clamp(body.stats.stress, 0, 1);
-  const panic = THREE.MathUtils.clamp(body.stats.panic / (body.stats.panic + 8), 0, 1);
+  const stress = body.stats.stress;
+  const panic = body.stats.panic;
 
   return { speed, forta, stress, panic };
 }
@@ -404,7 +467,7 @@ function rebuildDynamicControls() {
   }
 
   const filledControl = createCheckboxControl(
-    "filled",
+    "Filled",
     controlState.common.filled,
     (value) => {
       controlState.common.filled = value;
@@ -418,7 +481,7 @@ function rebuildDynamicControls() {
 
   if (controlState.common.filled) {
     const fillColorControl = createColorControl(
-      "fill colour",
+      "Body Colour",
       controlState.common.fillColor,
       (value) => {
         controlState.common.fillColor = value;
@@ -433,14 +496,14 @@ function rebuildDynamicControls() {
 
 function createControlPanel() {
   const title = document.createElement("div");
-  title.innerText = "Control obiect";
+  title.innerText = "Control Panel";
   title.style.fontWeight = "700";
   panelEl.appendChild(title);
 
   const objectLabel = document.createElement("label");
   objectLabel.style.display = "grid";
   objectLabel.style.gap = "4px";
-  objectLabel.innerText = "Obiect";
+  objectLabel.innerText = "Blob Type";
 
   const objectSelect = document.createElement("select");
   objectSelect.style.padding = "4px";
@@ -481,14 +544,14 @@ function createControlPanel() {
   });
   panelEl.appendChild(resetBtn);
 
-  liveMetrics.speed = createLiveMetric("speed", 0);
-  liveMetrics.forta = createLiveMetric("forta", 0);
-  liveMetrics.stress = createLiveMetric("stress", 0);
-  liveMetrics.panic = createLiveMetric("panic", 0);
+  liveMetrics.speed = createLiveMetric("Speed", 0);
+  liveMetrics.forta = createLiveMetric("Force", 0);
+  liveMetrics.stress = createLiveMetric("Stress", 0);
+  liveMetrics.panic = createLiveMetric("Panic", 0);
 
   const liveTableTitle = document.createElement("div");
   liveTableTitle.style.fontWeight = "700";
-  liveTableTitle.innerText = "Tabel feedback";
+  liveTableTitle.innerText = "Feedback Metrics";
   panelEl.appendChild(liveTableTitle);
 
   const liveTable = document.createElement("table");
