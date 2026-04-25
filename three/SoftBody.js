@@ -18,15 +18,30 @@ export class SoftBody {
 
     this.shapeDamping = options.shapeDamping ?? 8;
 
+    this.rotation = options.rotation ?? 0; // radians
+
     this.createPoints();
     this.createObjects();
     this.updateVisual();
   }
 
   createPoints() {
+    const cos = Math.cos(this.rotation);
+    const sin = Math.sin(this.rotation);
+
     for (const local of this.shape) {
-      const position = new THREE.Vector2().addVectors(this.center, local);
-      this.points.push(new SoftBodyPoint(position, local));
+      // rotate local shape
+      const rotatedLocal = new THREE.Vector2(
+        local.x * cos - local.y * sin,
+        local.x * sin + local.y * cos,
+      );
+
+      const position = new THREE.Vector2().addVectors(
+        this.center,
+        rotatedLocal,
+      );
+
+      this.points.push(new SoftBodyPoint(position, rotatedLocal));
     }
   }
 
