@@ -18,8 +18,27 @@ fpsEl.style.fontSize = "14px";
 fpsEl.style.background = "rgba(0,0,0,0.5)";
 fpsEl.style.padding = "4px 8px";
 fpsEl.style.borderRadius = "4px";
+fpsEl.style.zIndex = "10";
 fpsEl.innerText = "FPS: 0";
 document.body.appendChild(fpsEl);
+
+const panelEl = document.createElement("div");
+panelEl.style.position = "fixed";
+panelEl.style.top = "10px";
+panelEl.style.right = "10px";
+panelEl.style.width = "360px";
+panelEl.style.padding = "12px";
+panelEl.style.borderRadius = "8px";
+panelEl.style.background = "rgba(0,0,0,0.65)";
+panelEl.style.color = "#fff";
+panelEl.style.fontFamily = "sans-serif";
+panelEl.style.fontSize = "12px";
+panelEl.style.zIndex = "10";
+panelEl.style.display = "grid";
+panelEl.style.gap = "8px";
+panelEl.style.maxHeight = "calc(100vh - 20px)";
+panelEl.style.overflow = "hidden";
+document.body.appendChild(panelEl);
 
 const scene = new THREE.Scene();
 
@@ -37,19 +56,504 @@ const camera = new THREE.OrthographicCamera(
 
 camera.position.z = 10;
 
-const bodies = [
-  new SoftBody({
-    shape: ShapeFactory.oval(24, 3, 5),
-    rotation: Math.PI / 4,
-    center: new THREE.Vector2(-5, 4),
-    shapeStiffness: 150,
-    bounce: 0.5,
-  }),
+const SHAPE_CONFIG = {
+  circle: {
+    builder: (params) => ShapeFactory.circle(params.pointCount, params.radius),
+    controls: [
+      { key: "pointCount", label: "nr puncte", min: 6, max: 80, step: 1 },
+      { key: "radius", label: "dimensiune (radius)", min: 0.5, max: 8, step: 0.1 },
+    ],
+  },
+  oval: {
+    builder: (params) =>
+      ShapeFactory.oval(params.pointCount, params.radiusX, params.radiusY),
+    controls: [
+      { key: "pointCount", label: "nr puncte", min: 6, max: 80, step: 1 },
+      { key: "radiusX", label: "dimensiune X", min: 0.5, max: 8, step: 0.1 },
+      { key: "radiusY", label: "dimensiune Y", min: 0.5, max: 8, step: 0.1 },
+    ],
+  },
+  square: {
+    builder: (params) => ShapeFactory.square(params.size, params.pointsPerEdge),
+    controls: [
+      { key: "size", label: "dimensiune (size)", min: 1, max: 10, step: 0.1 },
+      {
+        key: "pointsPerEdge",
+        label: "nr puncte/edge",
+        min: 2,
+        max: 30,
+        step: 1,
+      },
+    ],
+  },
+  rectangle: {
+    builder: (params) =>
+      ShapeFactory.rectangle(params.width, params.height, params.pointsPerEdge),
+    controls: [
+      { key: "width", label: "width", min: 1, max: 12, step: 0.1 },
+      { key: "height", label: "height", min: 1, max: 12, step: 0.1 },
+      {
+        key: "pointsPerEdge",
+        label: "nr puncte/edge",
+        min: 2,
+        max: 30,
+        step: 1,
+      },
+    ],
+  },
+  triangle: {
+    builder: (params) =>
+      ShapeFactory.triangle(
+        params.height,
+        params.smallAngleDeg,
+        params.pointsPerEdge,
+      ),
+    controls: [
+      { key: "height", label: "dimensiune (height)", min: 1, max: 10, step: 0.1 },
+      {
+        key: "smallAngleDeg",
+        label: "unghi varf",
+        min: 10,
+        max: 120,
+        step: 1,
+      },
+      {
+        key: "pointsPerEdge",
+        label: "nr puncte/edge",
+        min: 2,
+        max: 30,
+        step: 1,
+      },
+    ],
+  },
+};
+
+const COMMON_CONTROLS = [
+  { key: "rotation", label: "rotatie", min: -3.14, max: 3.14, step: 0.01 },
+  { key: "shapeStiffness", label: "flexiune/stiffness", min: 10, max: 300, step: 1 },
+  { key: "shapeDamping", label: "shapeDamping", min: 0, max: 30, step: 0.1 },
+  { key: "bounce", label: "bounce", min: 0, max: 1.2, step: 0.01 },
+  { key: "friction", label: "friction", min: 0, max: 60, step: 0.5 },
+  { key: "gravityY", label: "gravityY", min: -60, max: 20, step: 0.5 },
 ];
 
-for (const body of bodies) {
-  body.addToScene(scene);
+const controlState = {
+  selectedShape: "circle",
+  simulationSpeed: 1,
+  shapeParams: {
+    circle: { pointCount: 24, radius: 4 },
+    oval: { pointCount: 24, radiusX: 3, radiusY: 5 },
+    square: { size: 6, pointsPerEdge: 8 },
+    rectangle: { width: 6, height: 4, pointsPerEdge: 8 },
+    triangle: { height: 5, smallAngleDeg: 35, pointsPerEdge: 8 },
+  },
+  common: {
+    rotation: Math.PI / 4,
+    shapeStiffness: 150,
+    shapeDamping: 8,
+    bounce: 0.5,
+    friction: 35,
+    gravityY: -20,
+    filled: false,
+    fillColor: "#ffaa33",
+  },
+};
+
+let bodies = [];
+let dynamicControlsContainer = null;
+
+function createBody(shapeKey) {
+  const shapeConfig = SHAPE_CONFIG[shapeKey];
+  const shapeParams = controlState.shapeParams[shapeKey];
+
+  return new SoftBody({
+    shape: shapeConfig.builder(shapeParams),
+    rotation: controlState.common.rotation,
+    center: new THREE.Vector2(0, 0),
+    shapeStiffness: controlState.common.shapeStiffness,
+    shapeDamping: controlState.common.shapeDamping,
+    gravity: new THREE.Vector2(0, controlState.common.gravityY),
+    bounce: controlState.common.bounce,
+    friction: controlState.common.friction,
+    filled: controlState.common.filled,
+    fillColor: controlState.common.fillColor,
+    fillOpacity: controlState.common.filled ? 0.8 : 0,
+  });
 }
+
+function resetBody() {
+  for (const body of bodies) {
+    scene.remove(body.line);
+    scene.remove(body.pointMesh);
+    scene.remove(body.fillMesh);
+  }
+
+  const newBody = createBody(controlState.selectedShape);
+  bodies = [newBody];
+
+  for (const body of bodies) {
+    body.addToScene(scene);
+  }
+}
+
+function createControl(labelText, initialValue, min, max, step, onInput) {
+  const wrapper = document.createElement("label");
+  wrapper.style.display = "grid";
+  wrapper.style.gap = "4px";
+
+  const top = document.createElement("div");
+  top.style.display = "flex";
+  top.style.justifyContent = "space-between";
+
+  const label = document.createElement("span");
+  label.innerText = labelText;
+
+  const value = document.createElement("span");
+  value.innerText = Number(initialValue).toFixed(2);
+
+  const input = document.createElement("input");
+  input.type = "range";
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  input.value = String(initialValue);
+
+  input.addEventListener("input", () => {
+    const numeric = Number(input.value);
+    value.innerText = numeric.toFixed(2);
+    onInput(numeric);
+  });
+
+  top.appendChild(label);
+  top.appendChild(value);
+  wrapper.appendChild(top);
+  wrapper.appendChild(input);
+
+  return wrapper;
+}
+
+function createCheckboxControl(labelText, initialValue, onInput) {
+  const wrapper = document.createElement("label");
+  wrapper.style.display = "flex";
+  wrapper.style.alignItems = "center";
+  wrapper.style.justifyContent = "space-between";
+  wrapper.style.gap = "8px";
+
+  const label = document.createElement("span");
+  label.innerText = labelText;
+
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.checked = Boolean(initialValue);
+  input.addEventListener("change", () => {
+    onInput(input.checked);
+  });
+
+  wrapper.appendChild(label);
+  wrapper.appendChild(input);
+  return wrapper;
+}
+
+function createColorControl(labelText, initialValue, onInput) {
+  const wrapper = document.createElement("label");
+  wrapper.style.display = "grid";
+  wrapper.style.gap = "4px";
+
+  const label = document.createElement("span");
+  label.innerText = labelText;
+
+  const input = document.createElement("input");
+  input.type = "color";
+  input.value = initialValue;
+  input.style.width = "100%";
+  input.style.height = "28px";
+  input.style.border = "1px solid #666";
+  input.style.borderRadius = "4px";
+  input.style.background = "#1e1e1e";
+  input.addEventListener("input", () => {
+    onInput(input.value);
+  });
+
+  wrapper.appendChild(label);
+  wrapper.appendChild(input);
+  return wrapper;
+}
+
+function createLiveMetric(labelText, initialValue = 0) {
+  return {
+    labelText,
+    currentValue: Number(initialValue),
+    valueCell: null,
+    setValue(numeric) {
+      this.currentValue = Number(numeric);
+      if (this.valueCell) {
+        this.valueCell.innerText = this.currentValue.toFixed(2);
+      }
+    },
+  };
+}
+
+const liveMetrics = {
+  speed: null,
+  forta: null,
+  stress: null,
+  panic: null,
+};
+
+function getLiveStatsForMusic() {
+  const body = bodies[0];
+  if (!body) {
+    return { speed: 0, forta: 0, stress: 0, panic: 0 };
+  }
+
+  const speed = body.stats.speed;
+  const forta = body.stats.force;
+  const stress = THREE.MathUtils.clamp(body.stats.stress, 0, 1);
+  const panic = THREE.MathUtils.clamp(body.stats.panic / (body.stats.panic + 8), 0, 1);
+
+  return { speed, forta, stress, panic };
+}
+
+function publishMusicParams() {
+  const live = getLiveStatsForMusic();
+  const payload = {
+    object: controlState.selectedShape,
+    speed: live.speed,
+    forta: live.forta,
+    stress: live.stress,
+    panic: live.panic,
+  };
+
+  window.musicParams = payload;
+  window.dispatchEvent(new CustomEvent("music-params", { detail: payload }));
+
+  if (
+    liveMetrics.speed &&
+    liveMetrics.forta &&
+    liveMetrics.stress &&
+    liveMetrics.panic
+  ) {
+    liveMetrics.speed.setValue(live.speed);
+    liveMetrics.forta.setValue(live.forta);
+    liveMetrics.stress.setValue(live.stress);
+    liveMetrics.panic.setValue(live.panic);
+  }
+}
+
+function rebuildDynamicControls() {
+  dynamicControlsContainer.innerHTML = "";
+
+  const shapeTitle = document.createElement("div");
+  shapeTitle.style.fontWeight = "700";
+  shapeTitle.innerText = "Parametri shape";
+  shapeTitle.style.gridColumn = "1 / -1";
+  dynamicControlsContainer.appendChild(shapeTitle);
+
+  const shapeControls = SHAPE_CONFIG[controlState.selectedShape].controls;
+  for (const cfg of shapeControls) {
+    dynamicControlsContainer.appendChild(
+      createControl(
+        cfg.label,
+        controlState.shapeParams[controlState.selectedShape][cfg.key],
+        cfg.min,
+        cfg.max,
+        cfg.step,
+        (value) => {
+          controlState.shapeParams[controlState.selectedShape][cfg.key] = value;
+          resetBody();
+          publishMusicParams();
+        },
+      ),
+    );
+  }
+
+  const commonTitle = document.createElement("div");
+  commonTitle.style.fontWeight = "700";
+  commonTitle.innerText = "Parametri comuni";
+  commonTitle.style.gridColumn = "1 / -1";
+  dynamicControlsContainer.appendChild(commonTitle);
+
+  dynamicControlsContainer.appendChild(
+    createControl(
+      "viteza simulare",
+      controlState.simulationSpeed,
+      0.2,
+      3,
+      0.01,
+      (value) => {
+        controlState.simulationSpeed = value;
+      },
+    ),
+  );
+
+  for (const cfg of COMMON_CONTROLS) {
+    dynamicControlsContainer.appendChild(
+      createControl(
+        cfg.label,
+        controlState.common[cfg.key],
+        cfg.min,
+        cfg.max,
+        cfg.step,
+        (value) => {
+          controlState.common[cfg.key] = value;
+          resetBody();
+          publishMusicParams();
+        },
+      ),
+    );
+  }
+
+  const filledControl = createCheckboxControl(
+    "filled",
+    controlState.common.filled,
+    (value) => {
+      controlState.common.filled = value;
+      resetBody();
+      rebuildDynamicControls();
+      publishMusicParams();
+    },
+  );
+  filledControl.style.gridColumn = "1 / -1";
+  dynamicControlsContainer.appendChild(filledControl);
+
+  if (controlState.common.filled) {
+    const fillColorControl = createColorControl(
+      "fill colour",
+      controlState.common.fillColor,
+      (value) => {
+        controlState.common.fillColor = value;
+        resetBody();
+        publishMusicParams();
+      },
+    );
+    fillColorControl.style.gridColumn = "1 / -1";
+    dynamicControlsContainer.appendChild(fillColorControl);
+  }
+}
+
+function createControlPanel() {
+  const title = document.createElement("div");
+  title.innerText = "Control obiect";
+  title.style.fontWeight = "700";
+  panelEl.appendChild(title);
+
+  const objectLabel = document.createElement("label");
+  objectLabel.style.display = "grid";
+  objectLabel.style.gap = "4px";
+  objectLabel.innerText = "Obiect";
+
+  const objectSelect = document.createElement("select");
+  objectSelect.style.padding = "4px";
+  objectSelect.style.borderRadius = "4px";
+  objectSelect.style.border = "1px solid #666";
+  objectSelect.style.background = "#1e1e1e";
+  objectSelect.style.color = "#fff";
+
+  for (const key of Object.keys(SHAPE_CONFIG)) {
+    const option = document.createElement("option");
+    option.value = key;
+    option.innerText = key;
+    objectSelect.appendChild(option);
+  }
+
+  objectSelect.value = controlState.selectedShape;
+  objectSelect.addEventListener("change", () => {
+    controlState.selectedShape = objectSelect.value;
+    resetBody();
+    rebuildDynamicControls();
+    publishMusicParams();
+  });
+
+  objectLabel.appendChild(objectSelect);
+  panelEl.appendChild(objectLabel);
+
+  const resetBtn = document.createElement("button");
+  resetBtn.innerText = "Reset";
+  resetBtn.style.padding = "6px 8px";
+  resetBtn.style.borderRadius = "4px";
+  resetBtn.style.border = "1px solid #666";
+  resetBtn.style.background = "#292929";
+  resetBtn.style.color = "#fff";
+  resetBtn.style.cursor = "pointer";
+  resetBtn.addEventListener("click", () => {
+    resetBody();
+    publishMusicParams();
+  });
+  panelEl.appendChild(resetBtn);
+
+  liveMetrics.speed = createLiveMetric("speed", 0);
+  liveMetrics.forta = createLiveMetric("forta", 0);
+  liveMetrics.stress = createLiveMetric("stress", 0);
+  liveMetrics.panic = createLiveMetric("panic", 0);
+
+  const liveTableTitle = document.createElement("div");
+  liveTableTitle.style.fontWeight = "700";
+  liveTableTitle.innerText = "Tabel feedback";
+  panelEl.appendChild(liveTableTitle);
+
+  const liveTable = document.createElement("table");
+  liveTable.style.width = "100%";
+  liveTable.style.borderCollapse = "collapse";
+  liveTable.style.background = "rgba(255,255,255,0.04)";
+  liveTable.style.border = "1px solid rgba(255,255,255,0.2)";
+
+  const liveMetricsArray = [
+    liveMetrics.speed,
+    liveMetrics.forta,
+    liveMetrics.stress,
+    liveMetrics.panic,
+  ];
+
+  for (const metric of liveMetricsArray) {
+    const row = document.createElement("tr");
+    row.style.borderBottom = "1px solid rgba(255,255,255,0.14)";
+
+    const labelCell = document.createElement("td");
+    labelCell.innerText = metric.labelText;
+    labelCell.style.padding = "6px 8px";
+
+    const valueCell = document.createElement("td");
+    valueCell.innerText = metric.currentValue.toFixed(2);
+    valueCell.style.padding = "6px 8px";
+    valueCell.style.textAlign = "right";
+    valueCell.style.fontFamily = "monospace";
+
+    metric.valueCell = valueCell;
+
+    row.appendChild(labelCell);
+    row.appendChild(valueCell);
+    liveTable.appendChild(row);
+  }
+
+  panelEl.appendChild(liveTable);
+
+  const controlsTableTitle = document.createElement("div");
+  controlsTableTitle.style.fontWeight = "700";
+  controlsTableTitle.style.marginTop = "4px";
+  controlsTableTitle.innerText = "Tabel modificari";
+  panelEl.appendChild(controlsTableTitle);
+
+  const controlsTable = document.createElement("div");
+  controlsTable.style.background = "rgba(255,255,255,0.04)";
+  controlsTable.style.border = "1px solid rgba(255,255,255,0.2)";
+  controlsTable.style.borderRadius = "4px";
+  controlsTable.style.padding = "8px";
+  controlsTable.style.display = "grid";
+  controlsTable.style.gap = "6px";
+  panelEl.appendChild(controlsTable);
+
+  dynamicControlsContainer = document.createElement("div");
+  dynamicControlsContainer.style.display = "grid";
+  dynamicControlsContainer.style.gridTemplateColumns = "1fr 1fr";
+  dynamicControlsContainer.style.gap = "6px 10px";
+  controlsTable.appendChild(dynamicControlsContainer);
+
+  rebuildDynamicControls();
+}
+
+createControlPanel();
+resetBody();
+publishMusicParams();
 
 const dragController = new DragController();
 
@@ -97,7 +601,7 @@ function animate(now) {
   };
 
   const substeps = 4;
-  const subDt = dt / substeps;
+  const subDt = (dt * controlState.simulationSpeed) / substeps;
 
   for (let i = 0; i < substeps; i++) {
     for (const body of bodies) {
@@ -117,8 +621,9 @@ function animate(now) {
 
   for (const body of bodies) {
     body.updateVisual();
-    console.log(bodies[0].stats);
   }
+
+  publishMusicParams();
 
   renderer.render(scene, camera);
 }

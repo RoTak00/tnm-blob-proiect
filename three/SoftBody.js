@@ -92,8 +92,9 @@ export class SoftBody {
     this.fillGeometry = new THREE.BufferGeometry();
 
     const fillIndices = [];
-    for (let i = 1; i < this.points.length - 1; i++) {
-      fillIndices.push(0, i, i + 1);
+    const triangles = THREE.ShapeUtils.triangulateShape(this.shape, []);
+    for (const tri of triangles) {
+      fillIndices.push(tri[0], tri[1], tri[2]);
     }
 
     this.fillGeometry.setAttribute(
