@@ -1,0 +1,224 @@
+import * as THREE from "three";
+import { SoftBodyPoint } from "./SoftBodyPoint.js";
+import { ShapeFactory } from "./ShapeFactory.js";
+import { cross2D } from "./utils.js";
+
+export class SoftBody {
+  constructor(options = {}) {
+    this.center = options.center ?? new THREE.Vector2(0, 0);
+    this.shape = options.shape ?? ShapeFactory.circle();
+
+    this.shapeStiffness = options.shapeStiffness ?? 80;
+    this.gravity = options.gravity ?? new THREE.Vector2(0, -20);
+    this.bounce = options.bounce ?? 0.5;
+    this.friction = options.friction ?? 8;
+
+    this.points = [];
+    this.positions = new Float32Array(this.shape.length * 3);
+
+    this.shapeDamping = options.shapeDamping ?? 8;
+
+    this.createPoints();
+    this.createObjects();
+    this.updateVisual();
+  }
+
+  createPoints() {
+    for (const local of this.shape) {
+      const position = new THREE.Vector2().addVectors(this.center, local);
+      this.points.push(new SoftBodyPoint(position, local));
+    }
+  }
+
+  createObjects() {
+    this.geometry = new THREE.BufferGeometry();
+    this.geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(this.positions, 3),
+    );
+
+    this.line = new THREE.LineLoop(
+      this.geometry,
+      new THREE.LineBasicMaterial({ color: 0xffffff }),
+    );
+
+    this.pointGeometry = new THREE.BufferGeometry();
+    this.pointGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(this.positions, 3),
+    );
+
+    this.pointMesh = new THREE.Points(
+      this.pointGeometry,
+      new THREE.PointsMaterial({
+        color: 0xffaa33,
+        size: 8,
+        sizeAttenuation: false,
+      }),
+    );
+  }
+
+  addToScene(scene) {
+    scene.add(this.line);
+    scene.add(this.pointMesh);
+  }
+
+  resetForces() {
+    for (const point of this.points) {
+      point.force.set(0, 0);
+    }
+  }
+
+  getCenterOfMass() {
+    const center = new THREE.Vector2(0, 0);
+
+    for (const point of this.points) {
+      center.add(point.position);
+    }
+
+    return center.divideScalar(this.points.length);
+  }
+
+  addShapeMatchingForce() {
+    const center = this.getCenterOfMass();
+
+    let dotSum = 0;
+    let crossSum = 0;
+
+    for (const point of this.points) {
+      const r = new THREE.Vector2().subVectors(point.position, center);
+      const q = point.original;
+
+      dotSum += r.dot(q);
+      crossSum += cross2D(r, q);
+    }
+
+    const angle = -Math.atan2(crossSum, dotSum);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+
+    for (const point of this.points) {
+      const q = point.original;
+
+      const rotated = new THREE.Vector2(
+        q.x * cos - q.y * sin,
+        q.x * sin + q.y * cos,
+      );
+
+      const target = new THREE.Vector2().addVectors(center, rotated);
+      const delta = new THREE.Vector2().subVectors(target, point.position);
+
+      point.force.addScaledVector(delta, this.shapeStiffness);
+    }
+  }
+
+  integrate(dt) {
+    for (const point of this.points) {
+      point.force.addScaledVector(this.gravity, point.mass);
+
+      const acceleration = point.force.clone().divideScalar(point.mass);
+
+      point.velocity.addScaledVector(acceleration, dt);
+      point.position.addScaledVector(point.velocity, dt);
+    }
+  }
+
+  solveWallCollisions(bounds, dt) {
+    for (const point of this.points) {
+      if (point.position.x < bounds.left) {
+        point.position.x = bounds.left;
+        if (point.velocity.x < 0) point.velocity.x *= -this.bounce;
+      }
+
+      if (point.position.x > bounds.right) {
+        point.position.x = bounds.right;
+        if (point.velocity.x > 0) point.velocity.x *= -this.bounce;
+      }
+
+      if (point.position.y < bounds.bottom) {
+        point.position.y = bounds.bottom;
+
+        if (point.velocity.y < 0) {
+          point.velocity.y *= -this.bounce;
+          point.velocity.x *= Math.exp(-this.friction * dt);
+        }
+      }
+
+      if (point.position.y > bounds.top) {
+        point.position.y = bounds.top;
+        if (point.velocity.y > 0) point.velocity.y *= -this.bounce;
+      }
+    }
+  }
+
+  applyShapeDamping(dt) {
+    const center = this.getCenterOfMass();
+
+    const centerVelocity = new THREE.Vector2(0, 0);
+
+    for (const point of this.points) {
+      centerVelocity.add(point.velocity);
+    }
+
+    centerVelocity.divideScalar(this.points.length);
+
+    let angularVelocityNumerator = 0;
+    let angularVelocityDenominator = 0;
+
+    for (const point of this.points) {
+      const r = new THREE.Vector2().subVectors(point.position, center);
+      const relativeVelocity = new THREE.Vector2().subVectors(
+        point.velocity,
+        centerVelocity,
+      );
+
+      angularVelocityNumerator += cross2D(r, relativeVelocity);
+      angularVelocityDenominator += r.lengthSq();
+    }
+
+    if (angularVelocityDenominator === 0) return;
+
+    const angularVelocity =
+      angularVelocityNumerator / angularVelocityDenominator;
+
+    const dampingFactor = 1 - Math.exp(-this.shapeDamping * dt);
+
+    for (const point of this.points) {
+      const r = new THREE.Vector2().subVectors(point.position, center);
+
+      const rotationalVelocity = new THREE.Vector2(
+        -angularVelocity * r.y,
+        angularVelocity * r.x,
+      );
+
+      const targetVelocity = new THREE.Vector2().addVectors(
+        centerVelocity,
+        rotationalVelocity,
+      );
+
+      point.velocity.lerp(targetVelocity, dampingFactor);
+    }
+  }
+
+  update(dt, bounds) {
+    this.resetForces();
+    this.addShapeMatchingForce();
+    this.integrate(dt);
+    this.applyShapeDamping(dt);
+    this.solveWallCollisions(bounds, dt);
+  }
+
+  updateVisual() {
+    for (let i = 0; i < this.points.length; i++) {
+      const index = i * 3;
+      const position = this.points[i].position;
+
+      this.positions[index] = position.x;
+      this.positions[index + 1] = position.y;
+      this.positions[index + 2] = 0;
+    }
+
+    this.geometry.attributes.position.needsUpdate = true;
+    this.pointGeometry.attributes.position.needsUpdate = true;
+  }
+}
