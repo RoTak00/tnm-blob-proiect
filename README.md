@@ -272,3 +272,79 @@ for (const body of bodies) {
   body.addToScene(scene);
 }
 ```
+
+## Dragging (mouse interaction)
+
+Dragging is handled by a separate `DragController`, which applies forces to nearby points when you click and pull a body.
+
+### Parameters
+
+```js
+const dragController = new DragController({
+  stiffness: 250,
+  damping: 25,
+  maxDistance: 2,
+  affectedRange: 999,
+});
+```
+
+| Parameter       | Meaning                                    |
+| --------------- | ------------------------------------------ |
+| `stiffness`     | How strongly the point follows the mouse   |
+| `damping`       | Reduces oscillation while dragging         |
+| `maxDistance`   | Max distance from mouse to grab a point    |
+| `affectedRange` | How many neighboring points are influenced |
+
+---
+
+### Behavior
+
+- Clicking near a body grabs the closest point
+- Dragging pulls that point
+- Neighboring points are also influenced (for smooth deformation)
+
+`affectedRange` is automatically clamped to:
+
+```js
+floor(pointCount / 4);
+```
+
+So large bodies feel soft, and small ones stay stable.
+
+---
+
+### Tuning
+
+#### Strong / tight grab
+
+```js
+stiffness: 400,
+damping: 40,
+```
+
+#### Soft / jelly drag
+
+```js
+stiffness: 120,
+damping: 10,
+```
+
+#### Wide influence
+
+```js
+affectedRange: 999; // (auto-limited internally)
+```
+
+#### Precise grab
+
+```js
+maxDistance: 1.0;
+```
+
+---
+
+### Notes
+
+- Dragging applies **forces**, not teleportation -> natural physics behavior
+- Works together with shape matching -> body keeps its structure
+- Too high stiffness + low damping -> jitter / instability

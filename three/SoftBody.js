@@ -8,10 +8,10 @@ export class SoftBody {
     this.center = options.center ?? new THREE.Vector2(0, 0);
     this.shape = options.shape ?? ShapeFactory.circle();
 
-    this.shapeStiffness = options.shapeStiffness ?? 80;
+    this.shapeStiffness = options.shapeStiffness ?? 150;
     this.gravity = options.gravity ?? new THREE.Vector2(0, -20);
-    this.bounce = options.bounce ?? 0.5;
-    this.friction = options.friction ?? 8;
+    this.bounce = options.bounce ?? 0.8;
+    this.friction = options.friction ?? 35;
 
     this.points = [];
     this.positions = new Float32Array(this.shape.length * 3);

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { SoftBody } from "./SoftBody.js";
 import { ShapeFactory } from "./ShapeFactory.js";
+import { DragController } from "./DragController.js";
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -38,20 +39,19 @@ camera.position.z = 10;
 
 const bodies = [
   new SoftBody({
-    shape: ShapeFactory.oval(64, 3, 5),
+    shape: ShapeFactory.oval(24, 3, 5),
     rotation: Math.PI / 4,
     center: new THREE.Vector2(-5, 4),
-    shapeStiffness: 300,
-    bounce: 0.9,
-    filled: true,
-    fillColor: 0xff0000,
-    showPoints: false,
+    shapeStiffness: 150,
+    bounce: 0.5,
   }),
 ];
 
 for (const body of bodies) {
   body.addToScene(scene);
 }
+
+const dragController = new DragController();
 
 window.addEventListener("resize", () => {
   const aspect = window.innerWidth / window.innerHeight;
@@ -101,7 +101,16 @@ function animate(now) {
 
   for (let i = 0; i < substeps; i++) {
     for (const body of bodies) {
-      body.update(subDt, bounds);
+      body.resetForces();
+      body.addShapeMatchingForce();
+    }
+
+    dragController.apply();
+
+    for (const body of bodies) {
+      body.integrate(subDt);
+      body.applyShapeDamping(subDt);
+      body.solveWallCollisions(bounds, subDt);
     }
   }
 
@@ -113,3 +122,32 @@ function animate(now) {
 }
 
 requestAnimationFrame(animate);
+
+function getMouseWorld(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+
+  const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+  const world = new THREE.Vector3(x, y, 0).unproject(camera);
+
+  return new THREE.Vector2(world.x, world.y);
+}
+
+renderer.domElement.addEventListener("pointerdown", (event) => {
+  const world = getMouseWorld(event);
+  dragController.begin(bodies, new THREE.Vector2(world.x, world.y));
+});
+
+renderer.domElement.addEventListener("pointermove", (event) => {
+  const world = getMouseWorld(event);
+  dragController.move(new THREE.Vector2(world.x, world.y));
+});
+
+renderer.domElement.addEventListener("pointerup", () => {
+  dragController.end();
+});
+
+renderer.domElement.addEventListener("pointerleave", () => {
+  dragController.end();
+});
