@@ -38,21 +38,9 @@ camera.position.z = 10;
 
 const bodies = [
   new SoftBody({
-    shape: ShapeFactory.circle(24, 2.5),
-    center: new THREE.Vector2(-5, 4),
-    shapeStiffness: 500,
-  }),
-
-  new SoftBody({
-    shape: ShapeFactory.square(4, 8),
-    center: new THREE.Vector2(0, 4),
-    shapeStiffness: 100,
-  }),
-
-  new SoftBody({
-    shape: ShapeFactory.triangle(3, 8),
-    center: new THREE.Vector2(5, 4),
-    shapeStiffness: 500,
+    shape: ShapeFactory.rectangle(6, 3, 8),
+    center: new THREE.Vector2(-5, 8),
+    shapeStiffness: 200,
   }),
 ];
 

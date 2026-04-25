@@ -2,32 +2,55 @@ import * as THREE from "three";
 
 export class ShapeFactory {
   static circle(pointCount = 24, radius = 3) {
+    return this.oval(pointCount, radius, radius);
+  }
+
+  static triangleEquilateral(radius = 3, pointsPerEdge = 8) {
+    return this.triangle(radius, 60, pointsPerEdge);
+  }
+
+  static square(size = 5, pointsPerEdge = 8) {
+    return this.rectangle(size, size, pointsPerEdge);
+  }
+
+  static rectangle(width = 6, height = 3, pointsPerEdge = 8) {
+    const w = width / 2;
+    const h = height / 2;
+
+    const vertices = [
+      new THREE.Vector2(-w, -h),
+      new THREE.Vector2(w, -h),
+      new THREE.Vector2(w, h),
+      new THREE.Vector2(-w, h),
+    ];
+
+    return this.samplePolygon(vertices, pointsPerEdge);
+  }
+
+  static oval(pointCount = 32, radiusX = 4, radiusY = 2) {
     const points = [];
 
     for (let i = 0; i < pointCount; i++) {
       const angle = (i / pointCount) * Math.PI * 2;
 
       points.push(
-        new THREE.Vector2(Math.cos(angle) * radius, Math.sin(angle) * radius),
+        new THREE.Vector2(Math.cos(angle) * radiusX, Math.sin(angle) * radiusY),
       );
     }
 
     return points;
   }
 
-  static triangle(radius = 3, pointsPerEdge = 8) {
-    const vertices = this.circle(3, radius);
-    return this.samplePolygon(vertices, pointsPerEdge);
-  }
+  static triangle(height = 5, smallAngleDeg = 35, pointsPerEdge = 8) {
+    const halfAngle = THREE.MathUtils.degToRad(smallAngleDeg / 2);
+    const halfBase = Math.tan(halfAngle) * height;
 
-  static square(size = 5, pointsPerEdge = 8) {
-    const h = size / 2;
+    const centroidOffsetY = height / 3;
 
     const vertices = [
-      new THREE.Vector2(-h, -h),
-      new THREE.Vector2(h, -h),
-      new THREE.Vector2(h, h),
-      new THREE.Vector2(-h, h),
+      new THREE.Vector2(0, height - centroidOffsetY),
+      new THREE.Vector2(halfBase, -centroidOffsetY),
+      new THREE.Vector2(-halfBase, -centroidOffsetY),
     ];
 
     return this.samplePolygon(vertices, pointsPerEdge);
