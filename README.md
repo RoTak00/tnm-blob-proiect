@@ -348,3 +348,14 @@ maxDistance: 1.0;
 - Dragging applies **forces**, not teleportation -> natural physics behavior
 - Works together with shape matching -> body keeps its structure
 - Too high stiffness + low damping -> jitter / instability
+
+## Stats for WebPD
+
+Accessible through `SoftBody.stats`
+
+| Stat     | Meaning                                                                     | Range |
+| -------- | --------------------------------------------------------------------------- | ----- |
+| `speed`  | How fast the object is moving                                               | 0+    |
+| `force`  | How much force is exerted in total on the object                            | 0+    |
+| `stress` | How deformed the object is compared to its normal area                      | 0-1   |
+| `panic`  | A value of how much action has happened on the object in the past 3 seconds | 0+    |

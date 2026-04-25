@@ -26,6 +26,17 @@ export class SoftBody {
 
     this.showPoints = options.showPoints ?? true;
 
+    this.panicWindow = options.panicWindow ?? 3;
+
+    this.stats = {
+      speed: 0,
+      force: 0,
+      stress: 0,
+      panic: 0,
+    };
+
+    this.panicSamples = [];
+
     this.createPoints();
     this.createObjects();
     this.updateVisual();
@@ -251,14 +262,6 @@ export class SoftBody {
     }
   }
 
-  update(dt, bounds) {
-    this.resetForces();
-    this.addShapeMatchingForce();
-    this.integrate(dt);
-    this.applyShapeDamping(dt);
-    this.solveWallCollisions(bounds, dt);
-  }
-
   updateVisual() {
     for (let i = 0; i < this.points.length; i++) {
       const index = i * 3;
@@ -272,5 +275,94 @@ export class SoftBody {
     this.geometry.attributes.position.needsUpdate = true;
     this.pointGeometry.attributes.position.needsUpdate = true;
     this.fillGeometry.attributes.position.needsUpdate = true;
+  }
+
+  computeSpeed() {
+    const centerVelocity = new THREE.Vector2(0, 0);
+
+    for (const point of this.points) {
+      centerVelocity.add(point.velocity);
+    }
+
+    centerVelocity.divideScalar(this.points.length);
+
+    return centerVelocity.length();
+  }
+  computeForce() {
+    let totalForce = 0;
+
+    for (const point of this.points) {
+      totalForce += point.force.length();
+    }
+
+    return totalForce / this.points.length;
+  }
+
+  computeStress() {
+    const center = this.getCenterOfMass();
+
+    let dotSum = 0;
+    let crossSum = 0;
+
+    for (const point of this.points) {
+      const r = new THREE.Vector2().subVectors(point.position, center);
+      const q = point.original;
+
+      dotSum += r.dot(q);
+      crossSum += cross2D(r, q);
+    }
+
+    const angle = -Math.atan2(crossSum, dotSum);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+
+    let totalError = 0;
+    let totalReference = 0;
+
+    for (const point of this.points) {
+      const q = point.original;
+
+      const rotated = new THREE.Vector2(
+        q.x * cos - q.y * sin,
+        q.x * sin + q.y * cos,
+      );
+
+      const target = new THREE.Vector2().addVectors(center, rotated);
+
+      totalError += point.position.distanceTo(target);
+      totalReference += q.length();
+    }
+
+    return totalError / Math.max(totalReference, 0.0001);
+  }
+
+  updateStats(dt) {
+    this.stats.speed = this.computeSpeed();
+    this.stats.force = this.computeForce();
+    this.stats.stress = this.computeStress();
+
+    const instantPanic =
+      this.stats.speed + this.stats.force + this.stats.stress;
+
+    this.panicSamples.push({
+      age: 0,
+      value: instantPanic,
+    });
+
+    let panicSum = 0;
+
+    for (const sample of this.panicSamples) {
+      sample.age += dt;
+    }
+
+    this.panicSamples = this.panicSamples.filter(
+      (sample) => sample.age <= this.panicWindow,
+    );
+
+    for (const sample of this.panicSamples) {
+      panicSum += sample.value;
+    }
+
+    this.stats.panic = panicSum / Math.max(this.panicSamples.length, 1);
   }
 }

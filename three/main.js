@@ -111,11 +111,13 @@ function animate(now) {
       body.integrate(subDt);
       body.applyShapeDamping(subDt);
       body.solveWallCollisions(bounds, subDt);
+      body.updateStats(subDt);
     }
   }
 
   for (const body of bodies) {
     body.updateVisual();
+    console.log(bodies[0].stats);
   }
 
   renderer.render(scene, camera);
