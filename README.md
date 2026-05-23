@@ -17,7 +17,73 @@ The control panel allows choosing different types of objects, varying their prop
 
 ### Music
 
-The music of the application was built using Pure Data, by Lucia Constantin and Sebastian Colț.
+The music of the application was built using Pure Data, by Lucia Constantin and Sebastian Colț. Documentation presented in Romanian.
+
+#### Tema
+
+Proiectul consta in generarea unei melodii ambientale in Pure Data pentru un soft body simulation, folosindu-ne de componente audio foarte populare.
+
+### Tehnologii utilizate
+
+- Pure Data
+- MIDI
+- Detune folosind osciloatore
+- Filtre low-pass pentru sunete inalte
+- Enevelope-uri
+- Reverb
+- Efecte de zgomot de fundal (pink noise)
+
+### Componentele melodiei
+
+#### Componeta de input
+
+Are rolul de a trimite folosind obiectul send~ un semnal de start catre toate componente
+
+### Componentele de sunet ambiant
+
+#### Ambient 1
+
+- Este un generator de sunete ambientale
+- Sunt utilizate sunete din scallel F, C si G major, redate sub forma notelor MIDI
+- La fiecare pas este aleasa aleator o nota dintre cele 8 disponibile, si este convertita in frecventa
+- Rezultatul acesteia este utilizat pentru generarea unui sunet cu ajutorul a doua oscilatoare cu valori foarte apropiate in frecventa pentru a creea un efect de detune
+-   Sunetul generat este apoi filtrat folosind un filtru low-pass pentru a taia frecventele inalte
+-   Asupra semnalului se va aplica si un envelope care are scopul ca nota sa intre gradual, sa se mentina o perioada scurta si sa dispara lent (atac si release fiind egale = 500)
+
+#### Ambient 2
+
+- Este construit pe ambient 1
+- Foloseste frecvente mai joase pentru oscilatoare
+- Iar duarata notelor este mai mare (800)
+
+#### Ambient cu reverb
+
+- Foloseste ca baza principiile de la componenta ambient 1
+- Este adaugata o componete de reverb asupra notelor
+- Iar pe fundal este alaturat un zgomot de fundal
+
+### Componenta de bass
+
+- Alterneaza intre doua perechi de cate 2 frecvente: A2 si G2, respectiv C3 si F2
+- Oscilator simplu pentru generearea semnalului
+- Envelope aplicat pe fiecare nota
+
+### Componenta de ceas
+
+- Prin BPM, impartim bitul la 60000 de milisecunde, adica un minut, obtinand astfel lungimea unei patrimi de nota
+- Multiplicarile sunt folosite pentru a obtine lungimea unei note intregi, respectiv a unei patrimi de nota
+- La fiecare 2 masuri, ceasul va alterna notele din structurile pentru bass, fapt indicat prin toggle-ul atasat la finalul acestuia
+
+### Componenta de zgomot
+
+- Este un zgomot de fundal realizat prin aplicarea unor filtre low-pass si band-pass, care sunt combinate pentru a obtine un zgomot de fundal
+
+### Componenta de output
+
+- Deoarece melodia finala este alcatuita din mai multe componente, pentru a le strange pe toate intr-un singur semnal, am folosit obiectul throw~ denumit out pentru fiecare componenta
+- Componenta catch~ strange toate compoentele, iar semnaul final este salvat intr-un fisier audio de tip .wav
+
+![Pure Data graph](image/pure_data.jpeg)
 
 ## Run the project
 
