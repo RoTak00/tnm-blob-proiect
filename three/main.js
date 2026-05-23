@@ -408,7 +408,7 @@ function rebuildDynamicControls() {
 
   const shapeTitle = document.createElement("div");
   shapeTitle.style.fontWeight = "700";
-  shapeTitle.innerText = "Parametri shape";
+  shapeTitle.innerText = "Shape Parameters";
   shapeTitle.style.gridColumn = "1 / -1";
   dynamicControlsContainer.appendChild(shapeTitle);
 
@@ -432,13 +432,13 @@ function rebuildDynamicControls() {
 
   const commonTitle = document.createElement("div");
   commonTitle.style.fontWeight = "700";
-  commonTitle.innerText = "Parametri comuni";
+  commonTitle.innerText = "Common Parameters";
   commonTitle.style.gridColumn = "1 / -1";
   dynamicControlsContainer.appendChild(commonTitle);
 
   dynamicControlsContainer.appendChild(
     createControl(
-      "viteza simulare",
+      "Simulation Speed",
       controlState.simulationSpeed,
       0.2,
       3,
@@ -593,7 +593,7 @@ function createControlPanel() {
   const controlsTableTitle = document.createElement("div");
   controlsTableTitle.style.fontWeight = "700";
   controlsTableTitle.style.marginTop = "4px";
-  controlsTableTitle.innerText = "Tabel modificari";
+  controlsTableTitle.innerText = "Parameter Table";
   panelEl.appendChild(controlsTableTitle);
 
   const controlsTable = document.createElement("div");
@@ -611,10 +611,62 @@ function createControlPanel() {
   dynamicControlsContainer.style.gap = "6px 10px";
   controlsTable.appendChild(dynamicControlsContainer);
 
+  const musicControl = createCheckboxControl("Music", musicEnabled, (value) => {
+    setMusicEnabled(value);
+  });
+
+  musicControl.style.gridColumn = "1 / -1";
+  panelEl.appendChild(musicControl);
+
   rebuildDynamicControls();
 }
 
+function resetMusic() {
+  if (!musicLoaded) return;
+
+  if (bgMusic.isPlaying) {
+    bgMusic.stop();
+  }
+
+  if (musicEnabled) {
+    bgMusic.play();
+  }
+}
+
+function setMusicEnabled(enabled) {
+  musicEnabled = enabled;
+
+  if (!musicLoaded) return;
+
+  if (musicEnabled) {
+    if (!bgMusic.isPlaying) {
+      bgMusic.play();
+    }
+  } else {
+    if (bgMusic.isPlaying) {
+      bgMusic.stop();
+    }
+  }
+}
+
+const listener = new THREE.AudioListener();
+camera.add(listener);
+
+const bgMusic = new THREE.Audio(listener);
+const audioLoader = new THREE.AudioLoader();
+
+let musicEnabled = false;
+let musicLoaded = false;
+
+audioLoader.load("/music/pd_music.wav", function (buffer) {
+  bgMusic.setBuffer(buffer);
+  bgMusic.setLoop(true);
+  bgMusic.setVolume(0.5);
+  musicLoaded = true;
+});
+
 createControlPanel();
+
 resetBody();
 publishMusicParams();
 

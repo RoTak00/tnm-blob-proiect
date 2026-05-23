@@ -1,5 +1,24 @@
 # Soft Body Simulation
 
+<a href="https://youtu.be/zXxs5zkcds4" style = "font-size: 30px; color: darkblue; font-weight: bold;">Watch the demo!</a>
+This application present a softbody simulation featuring a control panel that allows experimenting with various parameters related to the body's characteristics.
+
+The user can choose between shapes such as circle, oval, square, rectangle and triangle for the body, and then modify features such as the body's stiffnes, damping, bounce and soil friction, while observing the ways in which the body deforms on contact with walls. The user can also pick up the object and drag it around to observe the deformation.
+
+The project features music created using Pure Data, which can be toggled on and off by using a checkbox. Just listen, it's really a masterpiece!
+
+### Physics
+
+The physics engine is built in Three.js using [this article](https://lisyarus.github.io/blog/posts/soft-body-physics.html) as a reference, implemented using shape matching, where the points of the body actively attempt to go back to their original position when pushed, leading to a soft body mechanism. The physics engine was built by Robert Takacs.
+
+### Control panel
+
+The control panel allows choosing different types of objects, varying their properties (width, length, number of points per side. triangle angle), and varying common simulation properties, choosing to show or not the "skeleton" of the object, and whether to play or not the music. The control panel was built by Raluca Chiriac.
+
+### Music
+
+The music of the application was built using Pure Data, by Lucia Constantin and Sebastian Colț.
+
 ## Run the project
 
 Because the project uses JavaScript modules, you must run it through a local server (not `file://`).
